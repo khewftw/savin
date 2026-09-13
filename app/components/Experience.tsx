@@ -1,24 +1,51 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+gsap.registerPlugin(ScrollTrigger);
 
 export default function Experience() {
   const cursorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const revealNodes = document.querySelectorAll<HTMLElement>("[data-reveal]");
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add("is-visible");
-          observer.unobserve(entry.target);
+    const revealNodes = [...document.querySelectorAll<HTMLElement>("[data-reveal]")];
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (reduce) {
+      gsap.set(revealNodes, { opacity: 1, y: 0, clearProps: "transform" });
+    } else {
+      revealNodes.forEach((node) => {
+        const stagger = node.hasAttribute("data-reveal-stagger");
+        const kids = stagger ? [...node.children] as HTMLElement[] : [];
+
+        if (kids.length > 1) {
+          gsap.set(node, { opacity: 1 });
+          gsap.set(kids, { opacity: 0, y: 28 });
+          gsap.to(kids, {
+            opacity: 1,
+            y: 0,
+            duration: 0.8,
+            ease: "power2.out",
+            stagger: 0.08,
+            scrollTrigger: { trigger: node, start: "top 88%", once: true },
+          });
+        } else {
+          gsap.fromTo(
+            node,
+            { opacity: 0, y: 28 },
+            {
+              opacity: 1,
+              y: 0,
+              duration: 0.8,
+              ease: "power2.out",
+              scrollTrigger: { trigger: node, start: "top 88%", once: true },
+            },
+          );
         }
       });
-    }, { threshold: 0.1, rootMargin: "0px 0px -5%" });
-    revealNodes.forEach((node, index) => {
-      node.style.setProperty("--delay", `${Math.min(index % 5, 4) * 70}ms`);
-      observer.observe(node);
-    });
+    }
 
     const cursor = cursorRef.current;
     const parallaxNodes = document.querySelectorAll<HTMLElement>("[data-parallax]");
@@ -39,14 +66,6 @@ export default function Experience() {
     const onScroll = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        const header = document.querySelector<HTMLElement>(".site-header");
-        header?.classList.toggle("is-scrolled", window.scrollY > 80);
-        revealNodes.forEach((node) => {
-          if (node.getBoundingClientRect().top < window.innerHeight * 1.08) {
-            node.classList.add("is-visible");
-            observer.unobserve(node);
-          }
-        });
         parallaxNodes.forEach((node) => {
           const rect = node.getBoundingClientRect();
           const progress = (window.innerHeight - rect.top) / (window.innerHeight + rect.height);
@@ -60,7 +79,7 @@ export default function Experience() {
     window.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
     return () => {
-      observer.disconnect();
+      ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
       cancelAnimationFrame(frame);
       window.removeEventListener("pointermove", onPointerMove);
       document.documentElement.removeEventListener("mouseleave", onPointerLeave);

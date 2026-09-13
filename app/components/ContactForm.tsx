@@ -19,8 +19,19 @@ function formatPhone(value: string) {
   return result;
 }
 
-export default function ContactForm() {
+export default function ContactForm({
+  service,
+  meta,
+  submitLabel = "Отправить обращение",
+  onSuccess,
+}: {
+  service?: string;
+  meta?: string;
+  submitLabel?: string;
+  onSuccess?: () => void;
+}) {
   const [phone, setPhone] = useState("+7");
+  const [comment, setComment] = useState("");
   const [status, setStatus] = useState<FormStatus>("idle");
   const [message, setMessage] = useState("");
 
@@ -43,11 +54,12 @@ export default function ContactForm() {
     }
 
     const apartment = String(formData.get("apartment") ?? "").trim();
-    const comment = String(formData.get("comment") ?? "").trim();
     const combinedComment = [
+      service ? `Услуга: ${service}` : "",
+      meta,
       apartment ? `Квартира / апартамент: ${apartment}` : "",
-      comment,
-    ].filter(Boolean).join("\n\n");
+      comment.trim(),
+    ].filter(Boolean).join("\n");
 
     setStatus("loading");
     setMessage("");
@@ -60,9 +72,11 @@ export default function ContactForm() {
       const data = (await response.json().catch(() => null)) as { message?: string } | null;
       if (!response.ok) throw new Error(data?.message || "Не удалось отправить обращение.");
       setStatus("success");
-      setMessage("Обращение принято. Сервис свяжется с вами в ближайшее время.");
+      setMessage("Заявка принята. Мы свяжемся с вами в ближайшее время.");
       form.reset();
       setPhone("+7");
+      setComment("");
+      onSuccess?.();
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "Связь временно недоступна. Попробуйте ещё раз.");
@@ -79,11 +93,10 @@ export default function ContactForm() {
         </label>
       </div>
       <label><span>Квартира / апартамент</span><input name="apartment" type="text" autoComplete="off" /></label>
-      <label><span>Комментарий</span><textarea name="comment" rows={2} /></label>
+      <label><span>Комментарий</span><textarea name="comment" rows={2} value={comment} onChange={(event) => setComment(event.target.value)} /></label>
       <div className="form-action">
-        <button type="submit" disabled={status === "loading"}>
-          <span>{status === "loading" ? "Отправляем" : "Отправить обращение"}</span>
-          <span aria-hidden="true" className="arrow">↗</span>
+        <button className="footer-send" type="submit" disabled={status === "loading"}>
+          {status === "loading" ? "Отправляем" : submitLabel}
         </button>
         <p className={`form-status ${status}`} aria-live="polite">{message}</p>
       </div>
