@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Savin Cleaning",
     description: "Безупречный клининговый сервис для частных пространств Savin House.",
-    images: ["/images/savin-hero.webp"],
+    images: ["/hero.jpg"],
     locale: "ru_RU",
     type: "website",
   },

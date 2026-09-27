@@ -1,10 +1,19 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import Link from "next/link";
+import { FormEvent, useId, useRef, useState } from "react";
 
 type FormStatus = "idle" | "loading" | "success" | "error";
 
+export type ContactFormVariant = "booking" | "footer" | "reel";
+
 const API_URL = process.env.NEXT_PUBLIC_CONTACT_API_URL ?? "/api/contact-inquiries";
+
+const DEFAULT_LABEL: Record<ContactFormVariant, string> = {
+  booking: "Забронировать",
+  footer: "Перезвоните мне",
+  reel: "Забронировать",
+};
 
 function formatPhone(value: string) {
   const digits = value.replace(/\D/g, "").replace(/^8/, "7").slice(0, 11);
@@ -19,21 +28,45 @@ function formatPhone(value: string) {
   return result;
 }
 
+function ConsentLink({ href, children }: { href: string; children: string }) {
+  return (
+    <Link href={href} onClick={(event) => event.stopPropagation()}>
+      {children}
+    </Link>
+  );
+}
+
 export default function ContactForm({
+  variant = "footer",
   service,
   meta,
-  submitLabel = "Отправить обращение",
+  date,
+  duration,
+  price,
+  submitLabel,
   onSuccess,
 }: {
+  variant?: ContactFormVariant;
   service?: string;
   meta?: string;
+  date?: string;
+  duration?: string;
+  price?: string;
   submitLabel?: string;
   onSuccess?: () => void;
 }) {
+  const baseId = useId();
+  const personalRef = useRef<HTMLInputElement>(null);
+  const offerRef = useRef<HTMLInputElement>(null);
   const [phone, setPhone] = useState("+7");
-  const [comment, setComment] = useState("");
+  const [consentPersonal, setConsentPersonal] = useState(false);
+  const [consentOffer, setConsentOffer] = useState(false);
+  const [consentError, setConsentError] = useState(false);
   const [status, setStatus] = useState<FormStatus>("idle");
   const [message, setMessage] = useState("");
+  const showName = variant !== "reel";
+  const label = submitLabel ?? DEFAULT_LABEL[variant];
+  const errorId = `${baseId}-consent-error`;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -41,8 +74,10 @@ export default function ContactForm({
     const formData = new FormData(form);
     const name = String(formData.get("name") ?? "").trim();
     const rawPhone = phone.replace(/\D/g, "");
+    const consentMissing = !consentPersonal || !consentOffer;
+    setConsentError(consentMissing);
 
-    if (name.length < 2) {
+    if (showName && name.length < 2) {
       setStatus("error");
       setMessage("Укажите имя, чтобы мы знали, как к вам обратиться.");
       return;
@@ -52,13 +87,19 @@ export default function ContactForm({
       setMessage("Проверьте номер телефона — нужно указать 10 цифр после +7.");
       return;
     }
+    if (consentMissing) {
+      setStatus("error");
+      setMessage("");
+      (consentPersonal ? offerRef : personalRef).current?.focus();
+      return;
+    }
 
-    const apartment = String(formData.get("apartment") ?? "").trim();
     const combinedComment = [
       service ? `Услуга: ${service}` : "",
       meta,
-      apartment ? `Квартира / апартамент: ${apartment}` : "",
-      comment.trim(),
+      date ? `Дата: ${date}` : "",
+      duration ? `Длительность: ${duration}` : "",
+      price ? `Стоимость: ${price}` : "",
     ].filter(Boolean).join("\n");
 
     setStatus("loading");
@@ -67,15 +108,23 @@ export default function ContactForm({
       const response = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone, comment: combinedComment || null }),
+        body: JSON.stringify({
+          name: showName ? name : null,
+          phone,
+          comment: combinedComment || null,
+          consentPersonal: true,
+          consentOffer: true,
+        }),
       });
       const data = (await response.json().catch(() => null)) as { message?: string } | null;
       if (!response.ok) throw new Error(data?.message || "Не удалось отправить обращение.");
       setStatus("success");
-      setMessage("Заявка принята. Мы свяжемся с вами в ближайшее время.");
+      setMessage(variant === "footer" ? "Заявка принята. Мы свяжемся с вами." : "");
       form.reset();
       setPhone("+7");
-      setComment("");
+      setConsentPersonal(false);
+      setConsentOffer(false);
+      setConsentError(false);
       onSuccess?.();
     } catch (error) {
       setStatus("error");
@@ -83,20 +132,112 @@ export default function ContactForm({
     }
   }
 
+  if (status === "success" && variant !== "footer") {
+    return (
+      <div className="form-success" role="status">
+        <p className="form-success-title">
+          Спасибо.
+          <br />
+          Заявка принята.
+        </p>
+        <p className="form-success-text">
+          {variant === "reel"
+            ? "Мы свяжемся с вами, чтобы подтвердить удобный день."
+            : "Мы свяжемся с вами, чтобы подтвердить детали уборки."}
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <form className="request-form" onSubmit={handleSubmit} noValidate>
-      <div className="form-row">
-        <label><span>Имя *</span><input name="name" type="text" autoComplete="name" required /></label>
+    <form className={`request-form request-form-${variant}`} onSubmit={handleSubmit} noValidate>
+      {showName ? (
+        <div className="form-row">
+          <label>
+            <span>Имя *</span>
+            <input name="name" type="text" autoComplete="name" required />
+          </label>
+          <label>
+            <span>Телефон *</span>
+            <input
+              name="phone"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              value={phone}
+              onChange={(event) => setPhone(formatPhone(event.target.value))}
+              required
+            />
+          </label>
+        </div>
+      ) : (
         <label>
           <span>Телефон *</span>
-          <input name="phone" type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(event) => setPhone(formatPhone(event.target.value))} required />
+          <input
+            name="phone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            value={phone}
+            onChange={(event) => setPhone(formatPhone(event.target.value))}
+            required
+          />
         </label>
-      </div>
-      <label><span>Квартира / апартамент</span><input name="apartment" type="text" autoComplete="off" /></label>
-      <label><span>Комментарий</span><textarea name="comment" rows={2} value={comment} onChange={(event) => setComment(event.target.value)} /></label>
+      )}
+
+      <label className={`form-consent${consentError && !consentPersonal ? " is-invalid" : ""}`}>
+        <input
+          ref={personalRef}
+          id={`${baseId}-personal`}
+          name="consentPersonal"
+          type="checkbox"
+          checked={consentPersonal}
+          onChange={(event) => {
+            const next = event.target.checked;
+            setConsentPersonal(next);
+            if (next && consentOffer) setConsentError(false);
+          }}
+          required
+          aria-invalid={consentError && !consentPersonal}
+          aria-describedby={consentError ? errorId : undefined}
+        />
+        <span>
+          Я даю{" "}
+          <ConsentLink href="/consent">согласие на обработку персональных данных</ConsentLink>
+        </span>
+      </label>
+
+      <label className={`form-consent${consentError && !consentOffer ? " is-invalid" : ""}`}>
+        <input
+          ref={offerRef}
+          id={`${baseId}-offer`}
+          name="consentOffer"
+          type="checkbox"
+          checked={consentOffer}
+          onChange={(event) => {
+            const next = event.target.checked;
+            setConsentOffer(next);
+            if (next && consentPersonal) setConsentError(false);
+          }}
+          required
+          aria-invalid={consentError && !consentOffer}
+          aria-describedby={consentError ? errorId : undefined}
+        />
+        <span>
+          Я принимаю условия{" "}
+          <ConsentLink href="/offer">публичной оферты</ConsentLink>
+        </span>
+      </label>
+
+      {consentError ? (
+        <p id={errorId} className="form-consent-error" role="alert">
+          Отметьте оба согласия, чтобы отправить заявку.
+        </p>
+      ) : null}
+
       <div className="form-action">
         <button className="footer-send" type="submit" disabled={status === "loading"}>
-          {status === "loading" ? "Отправляем" : submitLabel}
+          {status === "loading" ? "Отправляем" : label}
         </button>
         <p className={`form-status ${status}`} aria-live="polite">{message}</p>
       </div>

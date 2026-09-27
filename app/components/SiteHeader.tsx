@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PAGE_NAV } from "./nav";
+import { MOBILE_NAV, PAGE_NAV } from "./nav";
 
 export default function SiteHeader() {
   const [scrolled, setScrolled] = useState(false);
@@ -66,7 +66,7 @@ export default function SiteHeader() {
           <div className="masthead-menu-inner" onClick={(event) => event.stopPropagation()}>
             <p className="masthead-menu-kicker">Savin Cleaning</p>
             <nav aria-label="Меню">
-              {PAGE_NAV.map((item) => (
+              {MOBILE_NAV.map((item) => (
                 <a key={item.href} href={item.href} onClick={() => setMenuOpen(false)}>
                   {item.label}
                 </a>

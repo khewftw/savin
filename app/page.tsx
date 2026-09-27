@@ -1,12 +1,13 @@
 import Image from "next/image";
 import BookButton from "./components/BookButton";
 import BookingModal from "./components/BookingModal";
+import BusinessCare from "./components/BusinessCare";
 import Cta from "./components/Cta";
 import Experience from "./components/Experience";
 import HeroNow from "./components/HeroNow";
 import Keeping from "./components/Keeping";
 import News from "./components/News";
-import Scenario from "./components/Scenario";
+import QualityReels from "./components/QualityReels";
 import Services from "./components/Services";
 import SiteFooter from "./components/SiteFooter";
 import SiteHeader from "./components/SiteHeader";
@@ -19,7 +20,7 @@ export default function Home() {
       <Experience />
       <main id="main">
         <section className="hero" aria-labelledby="hero-title">
-          <Image className="hero-image" src="/images/savin-hero.webp" alt="Светлый интерьер частной резиденции с натуральным камнем и тёмным деревом" fill sizes="100vw" priority />
+          <Image className="hero-image" src="/hero.jpg" alt="Светлый интерьер частной резиденции с натуральным камнем и тёмным деревом" fill sizes="100vw" priority />
           <div className="hero-shade" />
           <div className="hero-content">
             <h1 id="hero-title">Savin<br />Cleaning</h1>
@@ -34,7 +35,8 @@ export default function Home() {
 
         <Keeping />
         <Services />
-        <Scenario />
+        <BusinessCare />
+        <QualityReels />
         <News />
         <Cta />
       </main>

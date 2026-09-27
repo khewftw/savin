@@ -55,68 +55,29 @@ export default function News() {
     const grid = gridRef.current;
     if (!grid) return;
     const items = [...grid.querySelectorAll<HTMLElement>(".news-item")];
-    const weights = [1, 0.5, 0];
-    const amplitude = 168;
-    let frame = 0;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    const align = () => {
-      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      if (reduce) {
-        items.forEach((item) => {
-          const shot = item.querySelector<HTMLElement>(".news-shot");
-          if (!shot) return;
-          shot.style.setProperty("--news-gap", "80px");
-          shot.style.removeProperty("transform");
-        });
-        return;
-      }
-
-      const vh = window.innerHeight;
-      const mid = vh * 0.5;
-      const mobile = window.innerWidth <= 900;
-
-      if (mobile) {
-        items.forEach((item) => {
-          const shot = item.querySelector<HTMLElement>(".news-shot");
-          const title = item.querySelector<HTMLElement>("h3");
-          if (!shot || !title) return;
-          const t = Math.max(0, Math.min(1, (title.getBoundingClientRect().top - mid) / (vh * 0.55)));
-          shot.style.setProperty("--news-gap", `${36 + t * 12}px`);
-          shot.style.transform = `translate3d(0, ${t * 16}px, 0)`;
-        });
-        return;
-      }
-
-      for (let i = 0; i < items.length; i += 3) {
-        const row = items.slice(i, i + 3);
-        const rowY = row.reduce((sum, item) => {
-          const title = item.querySelector<HTMLElement>("h3");
-          return sum + (title?.getBoundingClientRect().top ?? 0);
-        }, 0) / row.length;
-        const t = Math.max(0, Math.min(1, (rowY - mid) / (vh * 0.55)));
-        const gap = 80 + t * 20;
-        row.forEach((item, col) => {
-          const shot = item.querySelector<HTMLElement>(".news-shot");
-          if (!shot) return;
-          shot.style.setProperty("--news-gap", `${gap}px`);
-          shot.style.transform = `translate3d(0, ${t * amplitude * weights[col]}px, 0)`;
-        });
-      }
+    const show = () => {
+      const cols = window.matchMedia("(max-width: 900px)").matches ? 1 : 3;
+      items.forEach((item, index) => {
+        const step = reduce ? 0 : (cols === 1 ? index : index % cols);
+        item.style.transitionDelay = `${step * 120}ms`;
+        item.classList.add("is-in");
+      });
     };
 
-    const onScroll = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(align);
-    };
+    if (reduce) {
+      show();
+      return;
+    }
 
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    align();
-    return () => {
-      cancelAnimationFrame(frame);
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-    };
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry?.isIntersecting) return;
+      show();
+      observer.disconnect();
+    }, { threshold: 0.15 });
+    observer.observe(grid);
+    return () => observer.disconnect();
   }, []);
 
   return (
@@ -132,7 +93,7 @@ export default function News() {
             Акции сервиса и короткие заметки о том, как мы сохраняем порядок в частных интерьерах — от сезонного ухода до работы с деликатными материалами.
           </p>
         </div>
-        <div className="news-grid" ref={gridRef} data-reveal>
+        <div className="news-grid" ref={gridRef}>
           {ITEMS.map((item) => (
             <article key={item.datetime} className="news-item">
               <time dateTime={item.datetime}>{item.date}</time>
@@ -144,6 +105,7 @@ export default function News() {
               <figure className="news-shot">
                 <Image src={item.src} alt={item.alt} fill sizes="(max-width: 900px) 100vw, 33vw" />
               </figure>
+              <a className="news-item-link" href="#news">Читать подробнее →</a>
             </article>
           ))}
         </div>

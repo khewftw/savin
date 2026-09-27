@@ -58,18 +58,19 @@ export default function BookingModal() {
             ×
           </button>
           <p className="booking-kicker">Заявка</p>
-          <h2 id="booking-title">Оставьте заявку — мы соберём визит под ваш дом</h2>
+          <h2 id="booking-title">Забронировать уборку</h2>
           <p className="booking-service">
-            <span>Вы выбираете</span>
+            <span>Вы выбрали</span>
             <strong>{booking.title}</strong>
             {booking.meta ? <em>{booking.meta}</em> : null}
           </p>
-          <p className="booking-lead">Имя и телефон — остальное уточним при звонке. Обычно перезваниваем в течение часа.</p>
+          <p className="booking-lead">Оставьте имя и номер телефона. Мы уточним детали и подтвердим удобное время.</p>
           <ContactForm
             key={`${booking.title}-${booking.meta ?? ""}`}
+            variant="booking"
             service={booking.title}
             meta={booking.meta}
-            submitLabel="Оставить заявку"
+            submitLabel="Забронировать"
           />
         </div>
       </div>
